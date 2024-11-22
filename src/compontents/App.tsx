@@ -5,7 +5,10 @@ import {
 
 import { tsx } from "@arcgis/core/widgets/support/widget";
 
+import Expand from "@arcgis/core/widgets/Expand";
 import Fullscreen from "@arcgis/core/widgets/Fullscreen";
+import LayerList from "@arcgis/core/widgets/LayerList";
+import Slice from "@arcgis/core/widgets/Slice";
 import AppStore from "../stores/AppStore";
 import Header from "./Header";
 import { Widget } from "./Widget";
@@ -21,6 +24,24 @@ class App extends Widget<AppProperties> {
     const view = this.store.view;
     const fullscreen = new Fullscreen({ view });
     view.ui.add(fullscreen, "top-right");
+
+    view.ui.add(
+      new Expand({
+        group: "tools",
+        view,
+        content: new LayerList({ view }),
+      }),
+      "top-right",
+    );
+
+    view.ui.add(
+      new Expand({
+        group: "tools",
+        view,
+        content: new Slice({ view }),
+      }),
+      "top-right",
+    );
   }
 
   render() {

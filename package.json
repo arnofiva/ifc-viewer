@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@arcgis/core": "4.31",
-    "@esri/calcite-components": "2.13.2"
+    "@esri/calcite-components": "2.13.2",
+    "gl-matrix": "^3.4.3"
   },
   "devDependencies": {
     "@types/sortablejs": "^1.15.8",
