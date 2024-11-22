@@ -9,8 +9,8 @@ import request from "@arcgis/core/request";
 import { FillSymbol3DLayer, MeshSymbol3D } from "@arcgis/core/symbols";
 import SceneView from "@arcgis/core/views/SceneView";
 import "@esri/calcite-components/dist/calcite/calcite.css";
+import * as WebIFC from "../lib/web-ifc-api";
 import App from "./compontents/App";
-import * as WebIFC from "./lib/web-ifc-api.js";
 import AppStore from "./stores/AppStore";
 
 import MeshTransform from "@arcgis/core/geometry/support/MeshTransform";

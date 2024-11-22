@@ -18,5 +18,9 @@
     "skipLibCheck": true,
     "strictPropertyInitialization": false
   },
-  "include": ["./src/**/*", "./node_modules/@arcgis/core/**/*.d.ts"]
+  "include": [
+    "./lib/**/*",
+    "./src/**/*",
+    "./node_modules/@arcgis/core/**/*.d.ts"
+  ]
 }
