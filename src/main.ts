@@ -13,9 +13,15 @@ import * as WebIFC from "../lib/web-ifc-api";
 import App from "./compontents/App";
 import AppStore from "./stores/AppStore";
 
+import Color from "@arcgis/core/Color";
+import MeshMaterialMetallicRoughness from "@arcgis/core/geometry/support/MeshMaterialMetallicRoughness";
 import MeshTransform from "@arcgis/core/geometry/support/MeshTransform";
+import * as meshUtils from "@arcgis/core/geometry/support/meshUtils";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
+import GroupLayer from "@arcgis/core/layers/GroupLayer";
+import SceneLayer from "@arcgis/core/layers/SceneLayer";
 import { SimpleRenderer } from "@arcgis/core/renderers";
+import SolidEdges3D from "@arcgis/core/symbols/edges/SolidEdges3D";
 import { mat4, vec3 } from "gl-matrix";
 
 console.log(`Using ArcGIS Maps SDK for JavaScript v${kernel.fullVersion}`);
@@ -56,7 +62,7 @@ const app = new App({
   const ifcAPI = new WebIFC.IfcAPI();
   await ifcAPI.Init();
 
-  const { data } = await request("Building.ifc", {
+  const { data } = await request("LeopoldPointBuilding_2x3/Medium.ifc", {
     responseType: "array-buffer",
   });
 
@@ -73,8 +79,18 @@ const app = new App({
   //   console.log(entitiId, entity?.name);
   // });
 
+  const ifcTypes = [
+    // WebIFC.IFCRELSPACEBOUNDARY,
+
+    WebIFC.IFCSPACE,
+    // WebIFC.IFCSPACETYPE,
+    // WebIFC.IFCRELSPACEBOUNDARY,
+    // WebIFC.IFCPOLYGONALBOUNDEDHALFSPACE,
+    // WebIFC.IFCHALFSPACESOLID,
+  ];
+
   let types = entities.filter(
-    (f) => f === WebIFC.IFCSLAB && ifcAPI.IsIfcElement(f),
+    (f) => 0 <= ifcTypes.indexOf(f) && ifcAPI.IsIfcElement(f),
   );
 
   const modelTypes = ifcAPI.GetAllTypesOfModel(modelID);
@@ -86,8 +102,12 @@ const app = new App({
     symbolLayers: [
       new FillSymbol3DLayer({
         material: {
-          color: "white",
+          color: [255, 255, 255, 0.35],
         },
+        edges: new SolidEdges3D({
+          color: [20, 20, 20],
+          size: 0.8,
+        }),
       }),
     ],
   });
@@ -96,108 +116,200 @@ const app = new App({
 
   // grab all types except SPACE, OPENING and OPENINGSTANDARDCASE
 
-  // ifcAPI.StreamAllMeshes(modelID, (mesh: WebIFC.FlatMesh) => {
-  ifcAPI.StreamAllMeshesWithTypes(modelID, types, (mesh: WebIFC.FlatMesh) => {
-    // only during the lifetime of this function call, the geometry is available in memory
+  view.popupEnabled = true;
+  view.popup.defaultPopupTemplateEnabled = true;
+  view.popup.dockEnabled = true;
+  view.popup.dockOptions = {
+    position: "bottom-left",
+  };
 
-    const placedGeometries = mesh.geometries;
-    const expressID = mesh.expressID;
+  await map.loadAll();
 
-    for (let i = 0; i < placedGeometries.size(); i++) {
-      const placedGeometry = placedGeometries.get(i);
-      const geometry = ifcAPI.GetGeometry(
-        modelID,
-        placedGeometry.geometryExpressID,
-      );
+  const sceneLayer = map.allLayers.find(
+    ({ title }) => title === "Inno Week: IFC-Submission",
+  ) as SceneLayer;
 
-      const verts = ifcAPI.GetVertexArray(
-        geometry.GetVertexData(),
-        geometry.GetVertexDataSize(),
-      );
-      const indices = ifcAPI.GetIndexArray(
-        geometry.GetIndexData(),
-        geometry.GetIndexDataSize(),
-      );
+  // const query = sceneLayer.createQuery();
+  // query.returnGeometry = true;
+  // const { features } = await sceneLayer.queryFeatures(query);
 
-      const matrix = placedGeometry.flatTransformation;
-      const transform = mat4.fromValues.apply(this, matrix as any);
+  // console.log({ features });
 
-      const position = [] as number[];
-      const normal = [] as number[];
-      const out = vec3.create();
+  // ifcAPI.StreamAllMeshes(modelID, (ifcMesh: WebIFC.FlatMesh) => {
+  ifcAPI.StreamAllMeshesWithTypes(
+    modelID,
+    types,
+    (ifcMesh: WebIFC.FlatMesh, index, total) => {
+      // only during the lifetime of this function call, the geometry is available in memory
 
-      for (let j = 0; j < verts.length; j += 6) {
-        vec3.transformMat4(
-          out,
-          vec3.fromValues(verts.at(j)!, verts.at(j + 1)!, verts.at(j + 2)!),
-          transform,
-        );
-        position.push(out[2], out[0], out[1]);
+      const placedGeometries = ifcMesh.geometries;
+      const expressID = ifcMesh.expressID;
+      let mesh: Mesh | undefined;
 
-        vec3.transformMat4(
-          out,
-          vec3.fromValues(verts.at(j + 3)!, verts.at(j + 4)!, verts.at(j + 5)!),
-          transform,
-        );
-        normal.push(out[2], out[0], out[1]);
+      const line = ifcAPI.GetLine(modelID, expressID) as WebIFC.IFC2X3.IfcSpace;
+
+      const longName = line.LongName?.value || "";
+
+      if (
+        longName.startsWith("Floor ") ||
+        longName.startsWith("Level ") ||
+        longName.startsWith("Ground Floor ")
+      ) {
+        return;
       }
 
-      const color = [
-        placedGeometry.color.x * 255,
-        placedGeometry.color.y * 255,
-        placedGeometry.color.z * 255,
-        placedGeometry.color.w,
-      ];
+      for (let i = 0; i < placedGeometries.size(); i++) {
+        const placedGeometry = placedGeometries.get(i);
+        const geometry = ifcAPI.GetGeometry(
+          modelID,
+          placedGeometry.geometryExpressID,
+        );
 
-      const faces = [] as number[];
+        const verts = ifcAPI.GetVertexArray(
+          geometry.GetVertexData(),
+          geometry.GetVertexDataSize(),
+        );
+        const indices = ifcAPI.GetIndexArray(
+          geometry.GetIndexData(),
+          geometry.GetIndexDataSize(),
+        );
 
-      for (let j = 0; j < indices.length; j += 3) {
-        faces.push(indices.at(j)!, indices.at(j + 1)!, indices.at(j + 2)!);
-      }
+        const matrix = placedGeometry.flatTransformation;
+        const transform = mat4.fromValues.apply(this, matrix as any);
 
-      const mesh = new Mesh({
-        spatialReference: SpatialReference.WGS84,
-        vertexAttributes: {
-          position,
-          // normal,
-        },
-        components: [
-          new MeshComponent({
-            faces,
-            material: {
-              doubleSided: true,
-              color,
-            },
+        const position = [] as number[];
+        const normal = [] as number[];
+        const out = vec3.create();
+
+        for (let j = 0; j < verts.length; j += 6) {
+          vec3.transformMat4(
+            out,
+            vec3.fromValues(verts.at(j)!, verts.at(j + 1)!, verts.at(j + 2)!),
+            transform,
+          );
+          position.push(out[2], out[0], out[1]);
+
+          vec3.transformMat4(
+            out,
+            vec3.fromValues(
+              verts.at(j + 3)!,
+              verts.at(j + 4)!,
+              verts.at(j + 5)!,
+            ),
+            transform,
+          );
+          normal.push(out[2], out[0], out[1]);
+        }
+
+        const c = placedGeometry.color;
+
+        const color = new Color([
+          Math.pow(c.x, 1.0 / 2.2) * 255,
+          Math.pow(c.y, 1.0 / 2.2) * 255,
+          Math.pow(c.z, 1.0 / 2.2) * 255,
+          c.w,
+        ]);
+        // const color = new Color(`rgba(c.x,c.y,c.z,c.w)`);
+
+        // const color = [
+        //   Math.pow(placedGeometry.color.x, 2.2) * 255,
+        //   Math.pow(placedGeometry.color.y, 2.2) * 255,
+        //   Math.pow(placedGeometry.color.z, 2.2) * 255,
+        //   placedGeometry.color.w,
+        // ];
+
+        const faces = [] as number[];
+
+        for (let j = 0; j < indices.length; j += 3) {
+          faces.push(indices.at(j)!, indices.at(j + 1)!, indices.at(j + 2)!);
+        }
+
+        const component = new Mesh({
+          spatialReference: SpatialReference.WGS84,
+          vertexAttributes: {
+            position,
+            // normal,
+          },
+          components: [
+            new MeshComponent({
+              faces,
+              material: new MeshMaterialMetallicRoughness({
+                doubleSided: true,
+                color,
+              }),
+            }),
+          ],
+          transform: new MeshTransform({
+            rotationAxis: [0, 0, -1],
+            rotationAngle: -270 + 11.90268843,
           }),
-        ],
-        transform: new MeshTransform({
-          rotationAxis: [0, 0, -1],
-          rotationAngle: -270 + 11.90268843,
-        }),
-        vertexSpace: new MeshLocalVertexSpace({
-          origin: [8.55944491, 47.3739602, 483.53861683],
-        }),
-      });
+          vertexSpace: new MeshLocalVertexSpace({
+            origin: [8.55944491, 47.3739602, 483.53861683],
+          }),
+        });
+        if (mesh) {
+          mesh = meshUtils.merge([mesh, component]);
+        } else {
+          mesh = component;
+        }
+      }
 
       const typeID = ifcAPI.GetLineType(modelID, expressID);
       const typeName = ifcAPI.GetNameFromTypeCode(typeID);
-      const props = JSON.stringify(ifcAPI.GetLine(modelID, expressID, true));
-      meshes.push(
-        new Graphic({
-          attributes: { objectId, expressID, typeID, typeName, props },
-          geometry: mesh,
-        }),
-      );
-      objectId++;
-    }
-  });
 
-  console.log({ meshes });
+      const graphic = new Graphic({
+        attributes: {
+          objectId,
+          expressID,
+          typeID,
+          typeName,
+          longName,
+        },
+        geometry: mesh,
+      });
+
+      objectId++;
+
+      meshes.push(graphic);
+    },
+  );
+
+  for (const mesh of meshes) {
+    const expressID = mesh.getAttribute("expressID");
+
+    let GFA = 0;
+
+    const propertySets = await ifcAPI.properties.getPropertySets(
+      modelID,
+      expressID,
+      true,
+    );
+
+    for (let i = 0; i < propertySets.length; i++) {
+      const pset = propertySets.at(i);
+      if (pset) {
+        if (pset.type === WebIFC.IFCELEMENTQUANTITY) {
+          const elementQuantity = pset as WebIFC.IFC2X3.IfcElementQuantity;
+          const gfaQuantity = elementQuantity.Quantities.filter(
+            ({ type }) => type === WebIFC.IFCQUANTITYAREA,
+          )
+            .map((quantity) => quantity as WebIFC.IFC2X3.IfcQuantityArea)
+            .find(
+              (areaQuantity) => areaQuantity.Name.value === "GrossFloorArea",
+            )!;
+          if (gfaQuantity) {
+            GFA = gfaQuantity.AreaValue.value;
+            mesh.setAttribute("GFA", GFA);
+          }
+        }
+      }
+    }
+  }
 
   const layer = new FeatureLayer({
     spatialReference: SpatialReference.WGS84,
     title: "IFC Entities",
-    elevationInfo: { mode: "absolute-height" },
+    elevationInfo: { mode: "absolute-height", offset: 0 },
     objectIdField: "objectId",
     fields: [
       { name: "objectId", type: "oid" },
@@ -210,7 +322,8 @@ const app = new App({
         type: "big-integer",
       },
       { name: "typeName", type: "string" },
-      { name: "props", type: "string" },
+      { name: "longName", type: "string" },
+      { name: "GFA", type: "double" },
     ],
     source: meshes,
     geometryType: "mesh",
@@ -219,20 +332,11 @@ const app = new App({
     }),
   });
 
-  view.popupEnabled = true;
-  view.popup.defaultPopupTemplateEnabled = true;
-
-  map.add(layer);
-
-  await map.loadAll();
-
-  // const sceneLayer = map.allLayers.find(
-  //   ({ title }) => title === "Inno Week: IFC-Submission",
-  // ) as SceneLayer;
-
-  // const query = sceneLayer.createQuery();
-  // query.returnGeometry = true;
-  // const { features } = await sceneLayer.queryFeatures(query);
-
-  // console.log({ features });
+  map.add(
+    new GroupLayer({
+      layers: [layer, sceneLayer],
+      title: "Building",
+      visibilityMode: "exclusive",
+    }),
+  );
 })();
