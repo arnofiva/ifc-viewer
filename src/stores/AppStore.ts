@@ -1,4 +1,3 @@
-import Graphic from "@arcgis/core/Graphic";
 import WebScene from "@arcgis/core/WebScene";
 import Accessor from "@arcgis/core/core/Accessor";
 import {
@@ -8,6 +7,8 @@ import {
 import { whenOnce } from "@arcgis/core/core/reactiveUtils";
 import SceneLayer from "@arcgis/core/layers/SceneLayer";
 import SceneView from "@arcgis/core/views/SceneView";
+import { Project } from "../entities/Project";
+import ProjectStore from "./ProjectStore";
 import UserStore from "./UserStore";
 
 type AppStoreProperties = Pick<AppStore, "view">;
@@ -30,7 +31,10 @@ class AppStore extends Accessor {
   isLoadingProjects = true;
 
   @property()
-  projects: Graphic[] = [];
+  projects: Project[] = [];
+
+  @property()
+  projectStore: ProjectStore | null;
 
   constructor(props: AppStoreProperties) {
     super(props);
@@ -60,10 +64,22 @@ class AppStore extends Accessor {
 
       const { features } = await layer.queryFeatures(query);
 
-      this.projects = features;
+      this.projects = features.map((graphic) => new Project({ graphic }));
     }
 
     this.isLoadingProjects = false;
+  }
+
+  selectProject(project: Project) {
+    this.projectStore = new ProjectStore({ project });
+  }
+
+  deselectProject() {
+    const store = this.projectStore;
+    if (store) {
+      store.destroy();
+      this.projectStore = null;
+    }
   }
 }
 

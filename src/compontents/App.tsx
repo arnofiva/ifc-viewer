@@ -23,6 +23,7 @@ import "@esri/calcite-components/dist/components/calcite-list";
 import "@esri/calcite-components/dist/components/calcite-list-item";
 import "@esri/calcite-components/dist/components/calcite-shell";
 import "@esri/calcite-components/dist/components/calcite-shell-panel";
+import Project from "./ProjectPanel";
 import Projects from "./Projects";
 
 type AppProperties = Pick<App, "store">;
@@ -54,43 +55,36 @@ class App extends Widget<AppProperties> {
   }
 
   render() {
+    const projectStore = this.store.projectStore;
+
+    const flows = [
+      <calcite-flow-item key="projects">
+        <Projects store={this.store}></Projects>
+      </calcite-flow-item>,
+    ];
+
+    if (projectStore) {
+      flows.push(
+        <calcite-flow-item
+          key="selected-project"
+          beforeBack={() => this.store.deselectProject()}
+          heading={projectStore.project.name}
+          description={projectStore.project.location}
+        >
+          <Project store={projectStore}></Project>
+        </calcite-flow-item>,
+      );
+    }
+
+    const flow = <div></div>;
+
     return (
       <div>
         <calcite-shell>
           <Header store={this.store}></Header>
 
           <calcite-shell-panel slot="panel-start" position="start">
-            <calcite-flow id="example-flow">
-              <calcite-flow-item>
-                <Projects store={this.store}></Projects>
-
-                {/* <calcite-block
-                  id="first-flow-item-block"
-                  heading="Recommended for you"
-                  description="4 results"
-                  open
-                >
-                  <calcite-list>
-                    <calcite-list-item
-                      label="Narnia Community College"
-                      description="Wardobe, IA"
-                    ></calcite-list-item>
-                    <calcite-list-item
-                      label="University of Acme"
-                      description="Acmeton, CA"
-                    ></calcite-list-item>
-                    <calcite-list-item
-                      label="Roadrunner Trade School"
-                      description="Zion, UT"
-                    ></calcite-list-item>
-                    <calcite-list-item
-                      label="Cartographic Institute"
-                      description="Redlands, CA"
-                    ></calcite-list-item>
-                  </calcite-list>
-                </calcite-block> */}
-              </calcite-flow-item>
-            </calcite-flow>
+            <calcite-flow id="project-flow">{flows}</calcite-flow>
           </calcite-shell-panel>
 
           <calcite-panel

@@ -22,9 +22,6 @@ class Projects extends Widget<ProjectsProperties> {
   @property()
   store: AppStore;
 
-  @property()
-  userMenuOpen = false;
-
   constructor(props: ProjectsProperties) {
     super(props);
   }
@@ -45,19 +42,19 @@ class Projects extends Widget<ProjectsProperties> {
         >
           <calcite-card-group label="Projects" selection-mode="none">
             {projects.map((project) => {
-              const projectId = `project-${project.getObjectId()}`;
+              const projectId = `project-${project.graphic.getObjectId()}`;
               return (
-                <calcite-card class="project-card" key={projectId}>
-                  <span slot="heading">{project.getAttribute("Name")}</span>
-                  <span slot="description">
-                    {project.getAttribute("Description")}
-                  </span>
-                  <span slot="description">
-                    {project.getAttribute("Location")}
-                  </span>
+                <calcite-card
+                  class="project-card"
+                  key={projectId}
+                  onclick={() => this.store.selectProject(project)}
+                >
+                  <span slot="heading">{project.name}</span>
+                  <span slot="description">{project.description}</span>
+                  <span slot="description">{project.location}</span>
                   <div slot="footer-start">
                     <calcite-chip value="calcite chip" kind="neutral" scale="s">
-                      {this.getModelType(project.getAttribute("ESRI3DO_TYPE"))}
+                      {this.getModelType(project.format)}
                     </calcite-chip>
                   </div>
                   <div slot="footer-end">
@@ -77,7 +74,7 @@ class Projects extends Widget<ProjectsProperties> {
                     reference-element={`${projectId}-user-badge`}
                     placement="top"
                   >
-                    Uploaded by {project.getAttribute("Creator")}
+                    Uploaded by {project.creator}
                   </calcite-tooltip>
                 </calcite-card>
               );
