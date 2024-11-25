@@ -61,12 +61,12 @@ class Header extends Widget<HeaderProperties> {
     const userMenuClass = this.userMenuOpen ? "" : "hide";
 
     return (
-      <div>
-        <calcite-navigation slot="header">
+      <div slot="header">
+        <calcite-navigation>
           <calcite-navigation-logo
             slot="logo"
             heading={this.store.map.portalItem.title}
-            description="ArcGIS Maps SDK for JavaScript"
+            // description="ArcGIS Maps SDK for JavaScript"
             thumbnail="./icon-64.svg"
             onclick={() => {
               this.openScene();

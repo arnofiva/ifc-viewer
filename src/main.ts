@@ -133,7 +133,7 @@ const app = new App({
   await map.loadAll();
 
   const sceneLayer = map.allLayers.find(
-    ({ title }) => title === "Inno Week: IFC-Submission",
+    ({ title }) => title === "Projects",
   ) as SceneLayer;
 
   // const query = sceneLayer.createQuery();
