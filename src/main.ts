@@ -14,6 +14,7 @@ import App from "./compontents/App";
 import AppStore from "./stores/AppStore";
 
 import Color from "@arcgis/core/Color";
+import { whenOnce } from "@arcgis/core/core/reactiveUtils";
 import MeshMaterialMetallicRoughness from "@arcgis/core/geometry/support/MeshMaterialMetallicRoughness";
 import MeshTransform from "@arcgis/core/geometry/support/MeshTransform";
 import * as meshUtils from "@arcgis/core/geometry/support/meshUtils";
@@ -22,6 +23,7 @@ import GroupLayer from "@arcgis/core/layers/GroupLayer";
 import SceneLayer from "@arcgis/core/layers/SceneLayer";
 import { SimpleRenderer } from "@arcgis/core/renderers";
 import SolidEdges3D from "@arcgis/core/symbols/edges/SolidEdges3D";
+import Popup from "@arcgis/core/widgets/Popup";
 import { mat4, vec3 } from "gl-matrix";
 
 console.log(`Using ArcGIS Maps SDK for JavaScript v${kernel.fullVersion}`);
@@ -45,6 +47,18 @@ const view = new SceneView({
   container: "viewDiv",
   qualityProfile: "high",
   map,
+
+  popupEnabled: true,
+  popup: new Popup({
+    defaultPopupTemplateEnabled: true,
+  }),
+});
+
+whenOnce(() => view.popup.featureCount).then(() => {
+  view.popup.dockEnabled = true;
+  view.popup.dockOptions = {
+    position: "top-right",
+  };
 });
 
 (window as any)["view"] = view;
@@ -116,13 +130,6 @@ const app = new App({
 
   // grab all types except SPACE, OPENING and OPENINGSTANDARDCASE
 
-  view.popupEnabled = true;
-  view.popup.defaultPopupTemplateEnabled = true;
-  view.popup.dockEnabled = true;
-  view.popup.dockOptions = {
-    position: "bottom-left",
-  };
-
   await map.loadAll();
 
   const sceneLayer = map.allLayers.find(
@@ -149,14 +156,6 @@ const app = new App({
       const line = ifcAPI.GetLine(modelID, expressID) as WebIFC.IFC2X3.IfcSpace;
 
       const longName = line.LongName?.value || "";
-
-      if (
-        longName.startsWith("Floor ") ||
-        longName.startsWith("Level ") ||
-        longName.startsWith("Ground Floor ")
-      ) {
-        return;
-      }
 
       for (let i = 0; i < placedGeometries.size(); i++) {
         const placedGeometry = placedGeometries.get(i);
@@ -276,6 +275,7 @@ const app = new App({
 
   for (const mesh of meshes) {
     const expressID = mesh.getAttribute("expressID");
+    const longName = mesh.getAttribute("longName");
 
     let GFA = 0;
 
@@ -301,6 +301,26 @@ const app = new App({
             GFA = gfaQuantity.AreaValue.value;
             mesh.setAttribute("GFA", GFA);
           }
+        } else if (pset.type === WebIFC.IFCPROPERTYSET) {
+          const propertySet = pset as WebIFC.IFC2X3.IfcPropertySet;
+          const category = propertySet.HasProperties.filter(
+            ({ type }) => type === WebIFC.IFCPROPERTYSINGLEVALUE,
+          )
+            .map((property) => property as WebIFC.IFC2X3.IfcPropertySingleValue)
+            .find((singleValue) => singleValue.Name.value === "Category");
+
+          const level = propertySet.HasProperties.filter(
+            ({ type }) => type === WebIFC.IFCPROPERTYSINGLEVALUE,
+          )
+            .map((property) => property as WebIFC.IFC2X3.IfcPropertySingleValue)
+            .find((singleValue) => singleValue.Name.value === "Level");
+
+          if (category) {
+            mesh.setAttribute("category", category.NominalValue?.value);
+          }
+          if (level) {
+            mesh.setAttribute("level", level.NominalValue?.value);
+          }
         }
       }
     }
@@ -324,6 +344,8 @@ const app = new App({
       { name: "typeName", type: "string" },
       { name: "longName", type: "string" },
       { name: "GFA", type: "double" },
+      { name: "category", type: "string" },
+      { name: "level", type: "string" },
     ],
     source: meshes,
     geometryType: "mesh",
@@ -336,7 +358,7 @@ const app = new App({
     new GroupLayer({
       layers: [layer, sceneLayer],
       title: "Building",
-      visibilityMode: "exclusive",
+      visibilityMode: "independent",
     }),
   );
 })();
