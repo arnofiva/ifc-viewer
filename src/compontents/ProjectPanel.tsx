@@ -6,13 +6,10 @@ import { Widget } from "./Widget";
 
 import { tsx } from "@arcgis/core/widgets/support/widget";
 
-import "@esri/calcite-components/dist/components/calcite-action";
-import "@esri/calcite-components/dist/components/calcite-button";
-import "@esri/calcite-components/dist/components/calcite-menu";
-import "@esri/calcite-components/dist/components/calcite-menu-item";
-import "@esri/calcite-components/dist/components/calcite-navigation";
-import "@esri/calcite-components/dist/components/calcite-navigation-logo";
-import "@esri/calcite-components/dist/components/calcite-navigation-user";
+import "@esri/calcite-components/dist/components/calcite-block";
+import "@esri/calcite-components/dist/components/calcite-segmented-control";
+import "@esri/calcite-components/dist/components/calcite-segmented-control-item";
+
 import ProjectStore from "../stores/ProjectStore";
 
 type ProjectPanelProperties = Pick<ProjectPanel, "store">;
@@ -38,11 +35,22 @@ class ProjectPanel extends Widget<ProjectPanelProperties> {
       <div>
         <calcite-block
           id="first-flow-item-block"
-          heading={name}
-          description={description}
+          heading="Display"
           open
           loading={isLoading}
-        ></calcite-block>
+        >
+          <calcite-segmented-control width="full">
+            <calcite-segmented-control-item value="3dobj" checked>
+              Shell
+            </calcite-segmented-control-item>
+            <calcite-segmented-control-item value="ifc">
+              Interior
+            </calcite-segmented-control-item>
+            <calcite-segmented-control-item value="ifcspaces">
+              Spaces
+            </calcite-segmented-control-item>
+          </calcite-segmented-control>
+        </calcite-block>
       </div>
     );
   }

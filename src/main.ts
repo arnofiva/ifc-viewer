@@ -41,7 +41,7 @@ const view = new SceneView({
 whenOnce(() => view.popup.featureCount).then(() => {
   view.popup.dockEnabled = true;
   view.popup.dockOptions = {
-    position: "top-right",
+    position: "top-left",
   };
 });
 
