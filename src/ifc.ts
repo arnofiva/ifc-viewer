@@ -3,13 +3,12 @@ import Graphic from "@arcgis/core/Graphic";
 import { SpatialReference } from "@arcgis/core/geometry";
 import Mesh from "@arcgis/core/geometry/Mesh";
 import MeshComponent from "@arcgis/core/geometry/support/MeshComponent";
-import MeshLocalVertexSpace from "@arcgis/core/geometry/support/MeshLocalVertexSpace";
 import MeshMaterialMetallicRoughness from "@arcgis/core/geometry/support/MeshMaterialMetallicRoughness";
-import MeshTransform from "@arcgis/core/geometry/support/MeshTransform";
 import * as meshUtils from "@arcgis/core/geometry/support/meshUtils";
 import { mat4, vec3 } from "gl-matrix";
 import * as WebIFC from "../lib/web-ifc-api";
 import { IfcAPI } from "../lib/web-ifc-api";
+import { Project } from "./entities/Project";
 
 let ifcAPI: IfcAPI | null = null;
 
@@ -34,7 +33,11 @@ export async function closeModel(modelID: number) {
   }
 }
 
-export async function extractEntities(modelID: number, spaces: boolean) {
+export async function extractEntities(
+  project: Project,
+  modelID: number,
+  spaces: boolean,
+) {
   const ifcAPI = await createAPI();
 
   const meshes = [] as Graphic[];
@@ -55,24 +58,26 @@ export async function extractEntities(modelID: number, spaces: boolean) {
     (f) => 0 <= ifcTypes.indexOf(f) && ifcAPI.IsIfcElement(f),
   );
 
-  const modelTypes = ifcAPI.GetAllTypesOfModel(modelID);
-  modelTypes.forEach((type) => {
-    console.log(type.typeName);
-  });
+  // const modelTypes = ifcAPI.GetAllTypesOfModel(modelID);
+  // modelTypes.forEach((type) => {
+  //   console.log(type.typeName);
+  // });
 
   if (spaces) {
     ifcAPI.StreamAllMeshesWithTypes(
       modelID,
       types,
-      createMeshParser(ifcAPI, modelID, meshes),
+      createMeshParser(ifcAPI, modelID, project, meshes),
     );
   } else {
-    ifcAPI.StreamAllMeshes(modelID, createMeshParser(ifcAPI, modelID, meshes));
+    ifcAPI.StreamAllMeshes(
+      modelID,
+      createMeshParser(ifcAPI, modelID, project, meshes),
+    );
   }
 
   for (const mesh of meshes) {
     const expressID = mesh.getAttribute("expressID");
-    const longName = mesh.getAttribute("longName");
 
     let GFA = 0;
 
@@ -129,6 +134,7 @@ export async function extractEntities(modelID: number, spaces: boolean) {
 const createMeshParser = (
   ifcAPI: WebIFC.IfcAPI,
   modelID: number,
+  project: Project,
   meshes: Graphic[],
 ) => {
   return (ifcMesh: WebIFC.FlatMesh) => {
@@ -140,7 +146,10 @@ const createMeshParser = (
 
     const line = ifcAPI.GetLine(modelID, expressID) as WebIFC.IFC2X3.IfcSpace;
 
-    const longName = line.LongName?.value || "";
+    const longName = line.LongName?.value || line.Name?.value || "";
+
+    const transform = project.transform;
+    const vertexSpace = project.vertexSpace;
 
     for (let i = 0; i < placedGeometries.size(); i++) {
       const placedGeometry = placedGeometries.get(i);
@@ -159,7 +168,7 @@ const createMeshParser = (
       );
 
       const matrix = placedGeometry.flatTransformation;
-      const transform = mat4.fromValues.apply(mat4, matrix as any);
+      const mat4Transform = mat4.fromValues.apply(mat4, matrix as any);
 
       const position = [] as number[];
       const normal = [] as number[];
@@ -169,14 +178,14 @@ const createMeshParser = (
         vec3.transformMat4(
           out,
           vec3.fromValues(verts.at(j)!, verts.at(j + 1)!, verts.at(j + 2)!),
-          transform,
+          mat4Transform,
         );
         position.push(out[2], out[0], out[1]);
 
         vec3.transformMat4(
           out,
           vec3.fromValues(verts.at(j + 3)!, verts.at(j + 4)!, verts.at(j + 5)!),
-          transform,
+          mat4Transform,
         );
         normal.push(out[2], out[0], out[1]);
       }
@@ -219,13 +228,8 @@ const createMeshParser = (
             }),
           }),
         ],
-        transform: new MeshTransform({
-          rotationAxis: [0, 0, -1],
-          rotationAngle: -270 + 11.90268843,
-        }),
-        vertexSpace: new MeshLocalVertexSpace({
-          origin: [8.55944491, 47.3739602, 483.53861683],
-        }),
+        transform,
+        vertexSpace,
       });
       if (mesh) {
         mesh = meshUtils.merge([mesh, component]);

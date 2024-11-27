@@ -10,7 +10,7 @@ import "@esri/calcite-components/dist/components/calcite-block";
 import "@esri/calcite-components/dist/components/calcite-segmented-control";
 import "@esri/calcite-components/dist/components/calcite-segmented-control-item";
 
-import ProjectStore from "../stores/ProjectStore";
+import ProjectStore, { ModelView } from "../stores/ProjectStore";
 
 type ProjectPanelProperties = Pick<ProjectPanel, "store">;
 
@@ -24,11 +24,6 @@ class ProjectPanel extends Widget<ProjectPanelProperties> {
   }
 
   render() {
-    const project = this.store.project;
-
-    const name = project.name;
-    const description = project.description;
-
     const isLoading = this.store.isLoading;
 
     return (
@@ -39,19 +34,44 @@ class ProjectPanel extends Widget<ProjectPanelProperties> {
           open
           loading={isLoading}
         >
-          <calcite-segmented-control width="full">
-            <calcite-segmented-control-item value="3dobj" checked>
-              Shell
-            </calcite-segmented-control-item>
-            <calcite-segmented-control-item value="ifc">
-              Interior
-            </calcite-segmented-control-item>
-            <calcite-segmented-control-item value="ifcspaces">
-              Spaces
-            </calcite-segmented-control-item>
-          </calcite-segmented-control>
+          {this.renderViewSelection()}
         </calcite-block>
       </div>
+    );
+  }
+
+  private renderViewSelection() {
+    const segments: { value: ModelView; label: string }[] = [
+      {
+        value: "shell",
+        label: "Shell",
+      },
+      {
+        value: "entities",
+        label: "Interior",
+      },
+      {
+        value: "spaces",
+        label: "Spaces",
+      },
+    ];
+
+    return (
+      <calcite-segmented-control
+        width="full"
+        onCalciteSegmentedControlChange={(e: any) =>
+          (this.store.selectedView = e.target.value)
+        }
+      >
+        {segments.map((s) => (
+          <calcite-segmented-control-item
+            value={s.value}
+            checked={s.value === this.store.selectedView}
+          >
+            {s.label}
+          </calcite-segmented-control-item>
+        ))}
+      </calcite-segmented-control>
     );
   }
 }

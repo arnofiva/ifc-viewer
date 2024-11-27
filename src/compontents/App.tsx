@@ -36,9 +36,7 @@ class App extends Widget<AppProperties> {
   postInitialize(): void {
     const view = this.store.view;
     const fullscreen = new Fullscreen({ view });
-    view.ui.add(fullscreen, "top-right");
-
-    view.ui.add(new LayerList({ view }), "bottom-right");
+    view.ui.add(fullscreen, "top-left");
 
     view.ui.add(
       new Expand({
@@ -47,6 +45,14 @@ class App extends Widget<AppProperties> {
         content: new Slice({ view }),
       }),
       "top-right",
+    );
+
+    view.ui.add(
+      new Expand({
+        view,
+        content: new LayerList({ view }),
+      }),
+      "bottom-right",
     );
   }
 
