@@ -7,6 +7,8 @@ import { Widget } from "./Widget";
 import { tsx } from "@arcgis/core/widgets/support/widget";
 
 import "@esri/calcite-components/dist/components/calcite-block";
+import "@esri/calcite-components/dist/components/calcite-list";
+import "@esri/calcite-components/dist/components/calcite-list-item";
 import "@esri/calcite-components/dist/components/calcite-segmented-control";
 import "@esri/calcite-components/dist/components/calcite-segmented-control-item";
 
@@ -29,13 +31,15 @@ class ProjectPanel extends Widget<ProjectPanelProperties> {
     return (
       <div>
         <calcite-block
-          id="first-flow-item-block"
+          key="viewSelectionBlock"
           heading="Display"
           open
           loading={isLoading}
         >
           {this.renderViewSelection()}
         </calcite-block>
+
+        {this.store.selectedView === "shell" ? [] : this.renderIFCBlocks()}
       </div>
     );
   }
@@ -72,6 +76,32 @@ class ProjectPanel extends Widget<ProjectPanelProperties> {
           </calcite-segmented-control-item>
         ))}
       </calcite-segmented-control>
+    );
+  }
+
+  private renderIFCBlocks() {
+    return (
+      <calcite-block key="viewSelectionBlock" heading="Levels" open>
+        <calcite-list
+          selection-appearance="border"
+          // selection-mode="single-persis"
+          selection-mode="single"
+          onCalciteListChange={(e: any) => {
+            const items = e.target.selectedItems;
+            const value = items && items.length ? items[0].value : null;
+            this.store.filterByLevel(value);
+          }}
+        >
+          {this.store.levels.map((level, index) => (
+            <calcite-list-item
+              key={`level-${index}`}
+              label={level.label}
+              description={level.id !== level.label ? level.id : null}
+              value={level.id}
+            ></calcite-list-item>
+          ))}
+        </calcite-list>
+      </calcite-block>
     );
   }
 }

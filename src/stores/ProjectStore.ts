@@ -8,7 +8,7 @@ import Graphic from "@arcgis/core/Graphic";
 import SceneLayer from "@arcgis/core/layers/SceneLayer";
 import { Project } from "../entities/Project";
 import { closeModel, extractEntities, loadModel } from "../ifc";
-import { entityLayer } from "../layers";
+import { entityLayer, Level, queryLevels } from "../layers";
 import { downloadSourceModel } from "../layerUtils";
 
 type ProjectStoreProperties = Pick<ProjectStore, "project">;
@@ -40,6 +40,12 @@ class ProjectStore extends Accessor {
   @property()
   selectedView: ModelView = "shell";
 
+  @property()
+  levels: Level[] = [];
+
+  @property()
+  currentLevel: string | null = null;
+
   constructor(props: ProjectStoreProperties) {
     super(props);
 
@@ -62,6 +68,14 @@ class ProjectStore extends Accessor {
         },
       ),
     );
+  }
+
+  public filterByLevel(level: string | null = null) {
+    if (level) {
+      entityLayer.definitionExpression = `level in ('${level}')`;
+    } else {
+      entityLayer.definitionExpression = "";
+    }
   }
 
   private async loadFile() {
@@ -100,6 +114,7 @@ class ProjectStore extends Accessor {
     query.outFields = [entityLayer.objectIdField];
     const { features } = await entityLayer.queryFeatures(query);
 
+    this.levels = [];
     await entityLayer.applyEdits({
       deleteFeatures: features,
     });
@@ -108,6 +123,7 @@ class ProjectStore extends Accessor {
       await entityLayer.applyEdits({
         addFeatures: entities,
       });
+      this.levels = await queryLevels(entityLayer);
     }
   }
 

@@ -3,6 +3,12 @@ import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import { SimpleRenderer } from "@arcgis/core/renderers";
 import { FillSymbol3DLayer, MeshSymbol3D } from "@arcgis/core/symbols";
 
+export type Level = {
+  id: string;
+  label: string;
+  order: number;
+};
+
 export const entityLayer = new FeatureLayer({
   spatialReference: SpatialReference.WGS84,
   title: "IFC Entities",
@@ -42,3 +48,66 @@ export const entityLayer = new FeatureLayer({
     }),
   }),
 });
+
+function createLevel(id: string): Level {
+  if (!id) {
+    return {
+      id: "<null>",
+      order: 0,
+      label: "Unknown",
+    };
+  } else if (id.match(/ground/i)) {
+    return {
+      id,
+      order: 0,
+      label: "Ground",
+    };
+  } else if (id.match(/roof/i)) {
+    return {
+      id,
+      order: Number.MAX_SAFE_INTEGER,
+      label: "Roof",
+    };
+  } else if (id.match(/parking/i)) {
+    return {
+      id,
+      order: Number.MIN_SAFE_INTEGER,
+      label: "Parking",
+    };
+  } else if (id.match(/base/i)) {
+    return {
+      id,
+      order: Number.MIN_SAFE_INTEGER,
+      label: "Basement",
+    };
+  }
+  const numbers = id.match(/-?\d+/);
+  if (numbers?.length) {
+    const order = Number.parseInt(numbers[0]);
+    return {
+      id,
+      order,
+      label: `Level ${order}`,
+    };
+  }
+  return {
+    id,
+    order: Number.MIN_SAFE_INTEGER,
+    label: id,
+  };
+}
+
+export async function queryLevels(layer: FeatureLayer) {
+  const query = layer.createQuery();
+  query.returnGeometry = false;
+  query.outFields = ["level"];
+  query.returnDistinctValues = true;
+  const { features } = await layer.queryFeatures(query);
+
+  const levels = features
+    .map((f) => f.getAttribute("level") as string)
+    .filter((level) => !!level)
+    .map(createLevel);
+  levels.sort((a, b) => b.order - a.order);
+  return levels;
+}
