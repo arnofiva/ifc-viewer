@@ -38,7 +38,6 @@ class Projects extends Widget<ProjectsProperties> {
           heading="Projects"
           description={description}
           open
-          loading={isLoading}
         >
           <calcite-card-group label="Projects" selection-mode="none">
             {projects.map((project) => {

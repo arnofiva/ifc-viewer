@@ -12,6 +12,7 @@ import "@esri/calcite-components/dist/components/calcite-list-item";
 import "@esri/calcite-components/dist/components/calcite-segmented-control";
 import "@esri/calcite-components/dist/components/calcite-segmented-control-item";
 
+import Legend from "@arcgis/core/widgets/Legend";
 import ProjectStore, { ModelView } from "../stores/ProjectStore";
 
 type ProjectPanelProperties = Pick<ProjectPanel, "store">;
@@ -26,20 +27,15 @@ class ProjectPanel extends Widget<ProjectPanelProperties> {
   }
 
   render() {
-    const isLoading = this.store.isLoading;
-
     return (
       <div>
-        <calcite-block
-          key="viewSelectionBlock"
-          heading="Display"
-          open
-          loading={isLoading}
-        >
+        <calcite-block key="viewSelectionBlock" heading="Display" open>
           {this.renderViewSelection()}
         </calcite-block>
 
         {this.store.selectedView === "shell" ? [] : this.renderIFCBlocks()}
+
+        <Legend view={this.store.view}></Legend>
       </div>
     );
   }
@@ -63,9 +59,15 @@ class ProjectPanel extends Widget<ProjectPanelProperties> {
     return (
       <calcite-segmented-control
         width="full"
-        onCalciteSegmentedControlChange={(e: any) =>
-          (this.store.selectedView = e.target.value)
-        }
+        onCalciteSegmentedControlChange={(e: any) => {
+          if (e.target.value === "shell") {
+            this.store.selectShell();
+          } else if (e.target.value === "entities") {
+            this.store.selectEntities();
+          } else {
+            this.store.selectSpaces();
+          }
+        }}
       >
         {segments.map((s) => (
           <calcite-segmented-control-item
@@ -80,6 +82,12 @@ class ProjectPanel extends Widget<ProjectPanelProperties> {
   }
 
   private renderIFCBlocks() {
+    const ifcStore = this.store.selectedStore;
+
+    if (!ifcStore) {
+      return;
+    }
+
     return (
       <calcite-block key="viewSelectionBlock" heading="Levels" open>
         <calcite-list
@@ -89,10 +97,10 @@ class ProjectPanel extends Widget<ProjectPanelProperties> {
           onCalciteListChange={(e: any) => {
             const items = e.target.selectedItems;
             const value = items && items.length ? items[0].value : null;
-            this.store.filterByLevel(value);
+            ifcStore.filterByLevel(value);
           }}
         >
-          {this.store.levels.map((level, index) => (
+          {ifcStore.levels.map((level, index) => (
             <calcite-list-item
               key={`level-${index}`}
               label={level.label}

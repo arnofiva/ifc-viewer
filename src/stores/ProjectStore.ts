@@ -3,20 +3,29 @@ import {
   property,
   subclass,
 } from "@arcgis/core/core/accessorSupport/decorators";
-import { when } from "@arcgis/core/core/reactiveUtils";
-import Graphic from "@arcgis/core/Graphic";
+import { debounce } from "@arcgis/core/core/promiseUtils";
+import GroupLayer from "@arcgis/core/layers/GroupLayer";
 import SceneLayer from "@arcgis/core/layers/SceneLayer";
+import SceneView from "@arcgis/core/views/SceneView";
+import WebScene from "@arcgis/core/WebScene";
 import { Project } from "../entities/Project";
 import { closeModel, extractEntities, loadModel } from "../ifc";
-import { entityLayer, Level, queryLevels } from "../layers";
+import { createEntityLayer, createSpacesLayer } from "../layers";
 import { downloadSourceModel } from "../layerUtils";
+import IFCStore from "./IFCStore";
 
-type ProjectStoreProperties = Pick<ProjectStore, "project">;
+type ProjectStoreProperties = Pick<ProjectStore, "project" | "view">;
 
 export type ModelView = "shell" | "entities" | "spaces";
 
 @subclass()
 class ProjectStore extends Accessor {
+  @property({ aliasOf: "view.map" })
+  map: WebScene;
+
+  @property({ constructOnly: true })
+  view: SceneView;
+
   @property({ constructOnly: true })
   project: Project;
 
@@ -38,44 +47,73 @@ class ProjectStore extends Accessor {
   modelID: number | null = null;
 
   @property()
-  selectedView: ModelView = "shell";
+  get selectedView(): ModelView {
+    if (this.entities && this.selectedStore === this.entities) {
+      return "entities";
+    } else if (this.spaces && this.selectedStore === this.spaces) {
+      return "spaces";
+    } else {
+      return "shell";
+    }
+  }
 
   @property()
-  levels: Level[] = [];
+  get selectedStore() {
+    return this._selectedStore;
+  }
+  private set selectedStore(store: IFCStore | null) {
+    if (store === this._selectedStore) {
+      return;
+    }
+
+    this._selectedStore = store;
+    if (store) {
+      store.reset();
+      this.sourceLayer.visible = false;
+    } else {
+      this.sourceLayer.visible = true;
+    }
+  }
 
   @property()
-  currentLevel: string | null = null;
+  private _selectedStore: IFCStore | null = null;
+
+  @property()
+  private entities: IFCStore | null = null;
+
+  @property()
+  private spaces: IFCStore | null = null;
+
+  @property({ readOnly: true })
+  groupLayer = new GroupLayer({
+    title: "IFC Model",
+    visibilityMode: "exclusive",
+  });
 
   constructor(props: ProjectStoreProperties) {
     super(props);
-
-    this.addHandles(
-      when(
-        () => this.selectedView,
-        async (view) => {
-          if (view === "shell") {
-            this.sourceLayer.visible = true;
-            entityLayer.visible = false;
-          } else {
-            if (this.modelID === null) {
-              await this.loadFile();
-            }
-
-            await this.extractEntities();
-            this.sourceLayer.visible = false;
-            entityLayer.visible = true;
-          }
-        },
-      ),
-    );
   }
 
-  public filterByLevel(level: string | null = null) {
-    if (level) {
-      entityLayer.definitionExpression = `level in ('${level}')`;
-    } else {
-      entityLayer.definitionExpression = "";
+  async selectShell() {
+    this._selectedStore = null;
+    this.sourceLayer.visible = true;
+    this.groupLayer.visible = false;
+  }
+
+  async selectEntities() {
+    if (!this.entities) {
+      this.entities = await this.initIFCStore(false);
     }
+
+    this.selectedStore = this.entities;
+  }
+
+  async selectSpaces() {
+    if (!this.spaces) {
+      this.spaces = await this.initIFCStore(true);
+    }
+
+    this.selectedStore = this.spaces;
   }
 
   private async loadFile() {
@@ -92,40 +130,42 @@ class ProjectStore extends Accessor {
     this.isLoadingFile = false;
   }
 
-  private async extractEntities() {
+  private initIFCStore = debounce(async (spaces: boolean) => {
     this.isLoadingEntities = true;
 
-    const modelID = this.modelID;
-
-    if (modelID !== null) {
-      const meshes = await extractEntities(
-        this.project,
-        modelID,
-        this.selectedView === "spaces",
-      );
-      await this.replaceEntities(meshes);
-    }
-    this.isLoadingEntities = false;
-  }
-
-  private async replaceEntities(entities: Graphic[]) {
-    const query = entityLayer.createQuery();
-    query.returnGeometry = false;
-    query.outFields = [entityLayer.objectIdField];
-    const { features } = await entityLayer.queryFeatures(query);
-
-    this.levels = [];
-    await entityLayer.applyEdits({
-      deleteFeatures: features,
+    await new Promise((resolve) => {
+      setTimeout(resolve, 500);
     });
 
-    if (entities.length) {
-      await entityLayer.applyEdits({
-        addFeatures: entities,
-      });
-      this.levels = await queryLevels(entityLayer);
+    if (this.modelID === null) {
+      await this.loadFile();
+      if (this.modelID === null) {
+        return null;
+      }
     }
-  }
+
+    const modelID = this.modelID;
+    let store: IFCStore;
+
+    this.map.add(this.groupLayer);
+
+    if (spaces) {
+      const meshes = await extractEntities(this.project, modelID, true);
+      this.spaces = store = new IFCStore({
+        layer: createSpacesLayer(meshes),
+      });
+    } else {
+      const meshes = await extractEntities(this.project, modelID, false);
+      this.entities = store = new IFCStore({
+        layer: createEntityLayer(meshes),
+      });
+    }
+
+    this.groupLayer.add(store.layer);
+    this.isLoadingEntities = false;
+
+    return store;
+  });
 
   private closeFile() {
     const modelID = this.modelID;
@@ -133,11 +173,12 @@ class ProjectStore extends Accessor {
       closeModel(modelID);
       this.modelID = null;
     }
+    this.map.remove(this.groupLayer);
+    this.groupLayer.destroy();
   }
 
   destroy(): void {
     this.closeFile();
-    this.replaceEntities([]);
     super.destroy();
   }
 }

@@ -45,9 +45,11 @@ class AppStore extends Accessor {
 
       await map.loadAll();
 
-      this.projectsLayer = map.allLayers.find(
-        ({ title }) => title === "Projects",
+      this.projectsLayer = map.findLayerById(
+        "19349f8476b-layer-0",
       ) as SceneLayer;
+
+      this.projectsLayer.legendEnabled = false;
 
       this.loadProjects();
     });
@@ -71,7 +73,8 @@ class AppStore extends Accessor {
   }
 
   selectProject(project: Project) {
-    this.projectStore = new ProjectStore({ project });
+    const view = this.view;
+    this.projectStore = new ProjectStore({ project, view });
   }
 
   deselectProject() {

@@ -13,6 +13,7 @@ import AppStore from "../stores/AppStore";
 import Header from "./Header";
 import { Widget } from "./Widget";
 
+import { watch } from "@arcgis/core/core/reactiveUtils";
 import "@esri/calcite-components/dist/components/calcite-block";
 import "@esri/calcite-components/dist/components/calcite-card";
 import "@esri/calcite-components/dist/components/calcite-card-group";
@@ -23,7 +24,7 @@ import "@esri/calcite-components/dist/components/calcite-list";
 import "@esri/calcite-components/dist/components/calcite-list-item";
 import "@esri/calcite-components/dist/components/calcite-shell";
 import "@esri/calcite-components/dist/components/calcite-shell-panel";
-import Project from "./ProjectPanel";
+import ProjectPanel from "./ProjectPanel";
 import Projects from "./Projects";
 
 type AppProperties = Pick<App, "store">;
@@ -38,21 +39,27 @@ class App extends Widget<AppProperties> {
     const fullscreen = new Fullscreen({ view });
     view.ui.add(fullscreen, "top-left");
 
-    view.ui.add(
-      new Expand({
-        group: "tools",
-        view,
-        content: new Slice({ view }),
-      }),
-      "top-right",
-    );
+    view.ui.add(new LayerList({ view, collapsed: true }), "top-right");
 
-    view.ui.add(
-      new Expand({
-        view,
-        content: new LayerList({ view }),
-      }),
-      "bottom-right",
+    const slice = new Slice({ view });
+
+    const sliceExpand = new Expand({
+      group: "tools",
+      view,
+      content: slice,
+    });
+
+    view.ui.add(sliceExpand, "top-right");
+
+    watch(
+      () => sliceExpand.expanded,
+      (expanded) => {
+        if (expanded) {
+          slice.viewModel.start();
+        } else {
+          slice.viewModel.clear();
+        }
+      },
     );
   }
 
@@ -64,7 +71,7 @@ class App extends Widget<AppProperties> {
     const projectStore = this.store.projectStore;
 
     const flows = [
-      <calcite-flow-item key="projects">
+      <calcite-flow-item key="projects" loading={this.store.isLoadingProjects}>
         <Projects store={this.store}></Projects>
       </calcite-flow-item>,
     ];
@@ -76,8 +83,9 @@ class App extends Widget<AppProperties> {
           beforeBack={() => this.store.deselectProject()}
           heading={projectStore.project.name}
           description={projectStore.project.location}
+          loading={projectStore.isLoading}
         >
-          <Project store={projectStore}></Project>
+          <ProjectPanel store={projectStore}></ProjectPanel>
         </calcite-flow-item>,
       );
     }

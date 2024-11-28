@@ -7,7 +7,6 @@ import AppStore from "./stores/AppStore";
 
 import { whenOnce } from "@arcgis/core/core/reactiveUtils";
 import Popup from "@arcgis/core/widgets/Popup";
-import { entityLayer } from "./layers";
 
 console.log(`Using ArcGIS Maps SDK for JavaScript v${kernel.fullVersion}`);
 
@@ -24,7 +23,6 @@ const map = new WebScene({
     //   url: portalUrl,
     // },
   },
-  layers: [entityLayer],
 });
 
 const view = new SceneView({

@@ -48,7 +48,7 @@ export class Project extends Accessor {
         this.a("ESRI3DO_RZ"),
         this.a("ESRI3DO_RY"),
       ],
-      rotationAngle: 90 + this.a("ESRI3DO_RDEG"),
+      rotationAngle: 270 + this.a("ESRI3DO_RDEG"),
       scale: [this.a("ESRI3DO_SX"), this.a("ESRI3DO_SZ"), this.a("ESRI3DO_SY")],
       translation: [
         this.a("ESRI3DO_TX"),
