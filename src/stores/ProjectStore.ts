@@ -4,6 +4,7 @@ import {
   subclass,
 } from "@arcgis/core/core/accessorSupport/decorators";
 import { debounce } from "@arcgis/core/core/promiseUtils";
+import { watch } from "@arcgis/core/core/reactiveUtils";
 import GroupLayer from "@arcgis/core/layers/GroupLayer";
 import SceneLayer from "@arcgis/core/layers/SceneLayer";
 import SceneView from "@arcgis/core/views/SceneView";
@@ -92,12 +93,26 @@ class ProjectStore extends Accessor {
 
   constructor(props: ProjectStoreProperties) {
     super(props);
+
+    this.addHandles(
+      watch(
+        () => this.selectedStore,
+        (store) => {
+          if (store) {
+            this.sourceLayer.visible = false;
+            this.groupLayer.visible = true;
+            store.layer.visible = true;
+          } else {
+            this.sourceLayer.visible = true;
+            this.groupLayer.visible = false;
+          }
+        },
+      ),
+    );
   }
 
   async selectShell() {
     this._selectedStore = null;
-    this.sourceLayer.visible = true;
-    this.groupLayer.visible = false;
   }
 
   async selectEntities() {
@@ -175,6 +190,7 @@ class ProjectStore extends Accessor {
     }
     this.map.remove(this.groupLayer);
     this.groupLayer.destroy();
+    this.sourceLayer.visible = true;
   }
 
   destroy(): void {

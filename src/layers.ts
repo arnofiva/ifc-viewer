@@ -2,6 +2,7 @@ import { SpatialReference } from "@arcgis/core/geometry";
 import Graphic from "@arcgis/core/Graphic";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import { SimpleRenderer, UniqueValueRenderer } from "@arcgis/core/renderers";
+import OpacityVariable from "@arcgis/core/renderers/visualVariables/OpacityVariable";
 import { FillSymbol3DLayer, MeshSymbol3D } from "@arcgis/core/symbols";
 import SolidEdges3D from "@arcgis/core/symbols/edges/SolidEdges3D";
 
@@ -53,42 +54,9 @@ export function createEntityLayer(source: Graphic[]) {
   });
 }
 
-const ROOMS = [
-  // "Stairs",
-  "Lobby",
-  "Common Room",
-  "Store",
-  "WC",
-  // "Technic",
-  // "Entrance",
-  "Room",
-  "Lounge",
-  "Kitchen",
-  "Bath",
-  "Balcony",
-  "Loggia",
-  "Terrace",
-  // "Technic Room",
-  "Garage",
-  // "Corridor",
-  // "Cellar area",
-  // "Ramp",
-];
+const SPACE_USE_TYPES = ["Office", "Residential", "Commercial", "Common Space"];
 
-const COLORS = [
-  "#ed5151ff",
-  "#149eceff",
-  "#a7c636ff",
-  "#9e559cff",
-  "#fc921fff",
-  "#ffde3eff",
-  "#f789d8ff",
-  "#b7814aff",
-  "#3caf99ff",
-  "#6b6bd6ff",
-  "#b54779ff",
-  "#7f7f7fff",
-];
+const COLORS = ["#ed5151ff", "#149eceff", "#a7c636ff", "#9e559c"];
 
 export function createSpacesLayer(source: Graphic[]) {
   return new FeatureLayer({
@@ -109,22 +77,25 @@ export function createSpacesLayer(source: Graphic[]) {
       { name: "typeName", type: "string" },
       { name: "longName", type: "string" },
       { name: "GFA", type: "double" },
+      { name: "NFA", type: "double" },
       { name: "category", type: "string" },
       { name: "level", type: "string" },
+      { name: "weatherExposure", type: "string" },
+      { name: "spaceUseType", type: "string" },
     ],
     source,
     geometryType: "mesh",
     renderer: new UniqueValueRenderer({
       field: "category",
       valueExpression:
-        "When(Equals($feature.category, 'Areas'), '__area__', $feature.longName)",
+        "When(Equals($feature.category, 'Areas'), '__area__', $feature.spaceUseType)",
       // field2: "longName",
       defaultLabel: "Other",
       defaultSymbol: new MeshSymbol3D({
         symbolLayers: [
           new FillSymbol3DLayer({
             material: {
-              color: [150, 150, 150],
+              color: "#7f7f7fff",
             },
             // edges: new SolidEdges3D({
             //   color: [20, 20, 20],
@@ -133,7 +104,17 @@ export function createSpacesLayer(source: Graphic[]) {
           }),
         ],
       }),
-
+      visualVariables: [
+        new OpacityVariable({
+          field: "weatherExposure",
+          valueExpression:
+            "When(Equals($feature.weatherExposure, 'Exterior'),50,100)",
+          stops: [
+            { value: 50, opacity: 0.2 },
+            { value: 100, opacity: 1 },
+          ],
+        }),
+      ],
       uniqueValueInfos: [
         {
           value: "__area__",
@@ -142,12 +123,13 @@ export function createSpacesLayer(source: Graphic[]) {
             symbolLayers: [
               new FillSymbol3DLayer({
                 material: {
-                  color: [255, 255, 255, 0.2],
+                  color: [255, 255, 255, 0],
                 },
                 edges: new SolidEdges3D({
                   color: [20, 20, 20],
                   size: 1.5,
                 }),
+                castShadows: false,
                 // edges: new SolidEdges3D({
                 //   color: [20, 20, 20],
                 //   size: 0.8,
@@ -156,9 +138,9 @@ export function createSpacesLayer(source: Graphic[]) {
             ],
           }),
         },
-        ...ROOMS.map((room, index) => ({
-          value: room,
-          label: room,
+        ...SPACE_USE_TYPES.map((spaceUseType, index) => ({
+          value: spaceUseType,
+          label: spaceUseType,
           symbol: new MeshSymbol3D({
             symbolLayers: [
               new FillSymbol3DLayer({
@@ -244,10 +226,10 @@ export async function queryLevels(layer: FeatureLayer) {
 export async function queryRooms(layer: FeatureLayer) {
   const query = layer.createQuery();
   query.returnGeometry = false;
-  query.outFields = ["longName"];
+  query.outFields = ["spaceUseType"];
   query.returnDistinctValues = true;
   const { features } = await layer.queryFeatures(query);
 
-  const rooms = features.map((f) => f.getAttribute("longName") as string);
+  const rooms = features.map((f) => f.getAttribute("spaceUseType") as string);
   console.log({ rooms });
 }

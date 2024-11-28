@@ -5,7 +5,7 @@ import {
 } from "@arcgis/core/core/accessorSupport/decorators";
 import { when } from "@arcgis/core/core/reactiveUtils";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
-import { Level, queryLevels } from "../layers";
+import { Level, queryLevels, queryRooms } from "../layers";
 
 type IFCStoreProperties = Pick<IFCStore, "layer">;
 
@@ -33,6 +33,8 @@ class IFCStore extends Accessor {
         () => this.layer,
         async (layer) => {
           this.levels = await queryLevels(layer);
+
+          queryRooms(layer);
         },
       ),
     );

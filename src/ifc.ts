@@ -79,8 +79,6 @@ export async function extractEntities(
   for (const mesh of meshes) {
     const expressID = mesh.getAttribute("expressID");
 
-    let GFA = 0;
-
     const propertySets = await ifcAPI.properties.getPropertySets(
       modelID,
       expressID,
@@ -99,9 +97,19 @@ export async function extractEntities(
             .find(
               (areaQuantity) => areaQuantity.Name.value === "GrossFloorArea",
             )!;
+
+          const nfaQuantity = elementQuantity.Quantities.filter(
+            ({ type }) => type === WebIFC.IFCQUANTITYAREA,
+          )
+            .map((quantity) => quantity as WebIFC.IFC2X3.IfcQuantityArea)
+            .find(
+              (areaQuantity) => areaQuantity.Name.value === "NetFloorArea",
+            )!;
           if (gfaQuantity) {
-            GFA = gfaQuantity.AreaValue.value;
-            mesh.setAttribute("GFA", GFA);
+            mesh.setAttribute("GFA", gfaQuantity.AreaValue.value);
+          }
+          if (nfaQuantity) {
+            mesh.setAttribute("NFA", gfaQuantity.AreaValue.value);
           }
         } else if (pset.type === WebIFC.IFCPROPERTYSET) {
           const propertySet = pset as WebIFC.IFC2X3.IfcPropertySet;
@@ -111,17 +119,40 @@ export async function extractEntities(
             .map((property) => property as WebIFC.IFC2X3.IfcPropertySingleValue)
             .find((singleValue) => singleValue.Name.value === "Category");
 
+          const weatherExposure = propertySet.HasProperties.filter(
+            ({ type }) => type === WebIFC.IFCPROPERTYSINGLEVALUE,
+          )
+            .map((property) => property as WebIFC.IFC2X3.IfcPropertySingleValue)
+            .find(
+              (singleValue) => singleValue.Name.value === "Weather Exposure",
+            );
+
           const level = propertySet.HasProperties.filter(
             ({ type }) => type === WebIFC.IFCPROPERTYSINGLEVALUE,
           )
             .map((property) => property as WebIFC.IFC2X3.IfcPropertySingleValue)
             .find((singleValue) => singleValue.Name.value === "Level");
 
+          const spaceUseType = propertySet.HasProperties.filter(
+            ({ type }) => type === WebIFC.IFCPROPERTYSINGLEVALUE,
+          )
+            .map((property) => property as WebIFC.IFC2X3.IfcPropertySingleValue)
+            .find((singleValue) => singleValue.Name.value === "Space Use Type");
+
           if (category) {
             mesh.setAttribute("category", category.NominalValue?.value);
           }
           if (level) {
             mesh.setAttribute("level", level.NominalValue?.value);
+          }
+          if (weatherExposure) {
+            mesh.setAttribute(
+              "weatherExposure",
+              weatherExposure.NominalValue?.value,
+            );
+          }
+          if (spaceUseType) {
+            mesh.setAttribute("spaceUseType", spaceUseType.NominalValue?.value);
           }
         }
       }
