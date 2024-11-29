@@ -19,9 +19,11 @@
   "dependencies": {
     "@arcgis/core": "4.31",
     "@esri/calcite-components": "2.13.2",
+    "chart.js": "^2.9.4",
     "gl-matrix": "^3.4.3"
   },
   "devDependencies": {
+    "@types/chart.js": "^2.9.4",
     "@types/sortablejs": "^1.15.8",
     "prettier": "^3.3.3",
     "sass": "^1.81.0",

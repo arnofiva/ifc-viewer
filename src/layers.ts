@@ -2,7 +2,7 @@ import { SpatialReference } from "@arcgis/core/geometry";
 import Graphic from "@arcgis/core/Graphic";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import { SimpleRenderer, UniqueValueRenderer } from "@arcgis/core/renderers";
-import OpacityVariable from "@arcgis/core/renderers/visualVariables/OpacityVariable";
+import StatisticDefinition from "@arcgis/core/rest/support/StatisticDefinition";
 import { FillSymbol3DLayer, MeshSymbol3D } from "@arcgis/core/symbols";
 import SolidEdges3D from "@arcgis/core/symbols/edges/SolidEdges3D";
 
@@ -104,17 +104,17 @@ export function createSpacesLayer(source: Graphic[]) {
           }),
         ],
       }),
-      visualVariables: [
-        new OpacityVariable({
-          field: "weatherExposure",
-          valueExpression:
-            "When(Equals($feature.weatherExposure, 'Exterior'),50,100)",
-          stops: [
-            { value: 50, opacity: 0.2 },
-            { value: 100, opacity: 1 },
-          ],
-        }),
-      ],
+      // visualVariables: [
+      //   new OpacityVariable({
+      //     field: "weatherExposure",
+      //     valueExpression:
+      //       "When(Equals($feature.weatherExposure, 'Exterior'),50,100)",
+      //     stops: [
+      //       { value: 50, opacity: 0.2 },
+      //       { value: 100, opacity: 1 },
+      //     ],
+      //   }),
+      // ],
       uniqueValueInfos: [
         {
           value: "__area__",
@@ -221,6 +221,27 @@ export async function queryLevels(layer: FeatureLayer) {
     .map(createLevel);
   levels.sort((a, b) => b.order - a.order);
   return levels;
+}
+
+export async function queryStats(layer: FeatureLayer) {
+  const query = layer.createQuery();
+  query.returnGeometry = false;
+  query.groupByFieldsForStatistics = ["spaceUseType", "category"];
+  query.outStatistics = [
+    new StatisticDefinition({
+      onStatisticField: "GFA",
+      outStatisticFieldName: "gfaSum",
+      statisticType: "sum",
+    }),
+    new StatisticDefinition({
+      onStatisticField: "NFA",
+      outStatisticFieldName: "nfaSum",
+      statisticType: "sum",
+    }),
+  ];
+  const { features } = await layer.queryFeatures(query);
+
+  return features.map((f) => f.attributes);
 }
 
 export async function queryRooms(layer: FeatureLayer) {

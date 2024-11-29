@@ -12,8 +12,12 @@ import "@esri/calcite-components/dist/components/calcite-list-item";
 import "@esri/calcite-components/dist/components/calcite-segmented-control";
 import "@esri/calcite-components/dist/components/calcite-segmented-control-item";
 
+import { watch } from "@arcgis/core/core/reactiveUtils";
+import Expand from "@arcgis/core/widgets/Expand";
 import Legend from "@arcgis/core/widgets/Legend";
+import IFCSpaces from "../stores/IFCSpaces";
 import ProjectStore, { ModelView } from "../stores/ProjectStore";
+import SpacesCharts from "./SpacesCharts";
 
 type ProjectPanelProperties = Pick<ProjectPanel, "store">;
 
@@ -24,6 +28,28 @@ class ProjectPanel extends Widget<ProjectPanelProperties> {
 
   constructor(props: ProjectPanelProperties) {
     super(props);
+
+    const expand = new Expand({
+      expandIcon: "pie-chart",
+      view: props.store.view,
+    });
+
+    this.addHandles(
+      watch(
+        () => props.store.selectedView === "spaces",
+        (spaces) => {
+          if (spaces) {
+            expand.content = new SpacesCharts({
+              store: props.store,
+              spacesStore: props.store.selectedStore as IFCSpaces,
+            });
+            props.store.view.ui.add(expand, "bottom-right");
+          } else {
+            props.store.view.ui.remove(expand);
+          }
+        },
+      ),
+    );
   }
 
   render() {

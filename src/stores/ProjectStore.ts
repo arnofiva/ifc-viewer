@@ -13,6 +13,7 @@ import { Project } from "../entities/Project";
 import { closeModel, extractEntities, loadModel } from "../ifc";
 import { createEntityLayer, createSpacesLayer } from "../layers";
 import { downloadSourceModel } from "../layerUtils";
+import IFCSpaces from "./IFCSpaces";
 import IFCStore from "./IFCStore";
 
 type ProjectStoreProperties = Pick<ProjectStore, "project" | "view">;
@@ -83,7 +84,7 @@ class ProjectStore extends Accessor {
   private entities: IFCStore | null = null;
 
   @property()
-  private spaces: IFCStore | null = null;
+  private spaces: IFCSpaces | null = null;
 
   @property({ readOnly: true })
   groupLayer = new GroupLayer({
@@ -125,7 +126,7 @@ class ProjectStore extends Accessor {
 
   async selectSpaces() {
     if (!this.spaces) {
-      this.spaces = await this.initIFCStore(true);
+      this.spaces = (await this.initIFCStore(true)) as IFCSpaces;
     }
 
     this.selectedStore = this.spaces;
@@ -166,7 +167,7 @@ class ProjectStore extends Accessor {
 
     if (spaces) {
       const meshes = await extractEntities(this.project, modelID, true);
-      this.spaces = store = new IFCStore({
+      this.spaces = store = new IFCSpaces({
         layer: createSpacesLayer(meshes),
       });
     } else {

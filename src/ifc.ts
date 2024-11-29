@@ -157,6 +157,15 @@ export async function extractEntities(
         }
       }
     }
+    if (mesh.getAttribute("category") === "Areas") {
+      if (
+        0 <= (mesh.getAttribute("longName") as string).indexOf("Computable")
+      ) {
+        mesh.setAttribute("spaceUseType", "Computed");
+      } else {
+        mesh.setAttribute("spaceUseType", "Built");
+      }
+    }
   }
 
   return meshes;
