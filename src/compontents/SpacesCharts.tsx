@@ -31,6 +31,12 @@ class SpacesCharts extends Widget<SpacesChartsProperties> {
   @property()
   chart: Chart;
 
+  @property()
+  netArea: number;
+
+  @property()
+  gfaArea: number;
+
   constructor(props: SpacesChartsProperties) {
     super(props);
 
@@ -38,6 +44,18 @@ class SpacesCharts extends Widget<SpacesChartsProperties> {
       when(
         () => this.spacesStore && this.spacesStore.stats,
         (stats) => {
+          const builtArea = stats.find(
+            (stat) =>
+              stat.category === "Areas" && stat.spaceUseType === "Built",
+          );
+          this.netArea = builtArea ? (builtArea.nfaSum as number) : 0;
+
+          const computedArea = stats.find(
+            (stat) =>
+              stat.category === "Areas" && stat.spaceUseType === "Computed",
+          );
+          this.gfaArea = computedArea ? (computedArea.nfaSum as number) : 0;
+
           if (this.chart && this.chart.data.datasets?.length) {
             const data = [0, 0, 0, 0, 0];
             stats.forEach((stat) => {
@@ -62,7 +80,6 @@ class SpacesCharts extends Widget<SpacesChartsProperties> {
             });
 
             // const stats = props.spacesStore.stats;
-            console.log("Update charts", { stats });
             this.chart.data.datasets[0].data = data;
             this.chart.update();
           }
@@ -104,7 +121,7 @@ class SpacesCharts extends Widget<SpacesChartsProperties> {
           position: "bottom",
         },
         title: {
-          display: true,
+          display: false,
           text: "Area per space usage",
         },
       },
@@ -114,16 +131,30 @@ class SpacesCharts extends Widget<SpacesChartsProperties> {
   render() {
     return (
       <div>
-        <div class="charts">
-          <div>
-            <canvas
-              afterCreate={(e: HTMLCanvasElement) => this.createChart(e)}
-              id="spaceTypeChart"
-              width="250"
-              height="300"
-            />
+        <calcite-block key="viewSelectionBlock" open>
+          <p>
+            <span class="area-label">Built area</span>
+            <br />
+            <h1>{this.netArea.toFixed(2)}m2</h1>
+          </p>
+
+          <p>
+            <span class="area-label">Usable area (GFA)</span>
+            <br />
+            <h1>{this.gfaArea.toFixed(2)}m2</h1>
+          </p>
+
+          <div class="charts">
+            <div>
+              <canvas
+                afterCreate={(e: HTMLCanvasElement) => this.createChart(e)}
+                id="spaceTypeChart"
+                width="250"
+                height="300"
+              />
+            </div>
           </div>
-        </div>
+        </calcite-block>
       </div>
     );
   }

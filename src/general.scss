@@ -39,3 +39,13 @@ calcite-navigation-logo {
   width: 100%;
   cursor: pointer;
 }
+
+.area-label {
+  color: --calcite-color-text-3;
+}
+
+.area-number {
+  color: --calcite-color-text-1;
+  font-weight: --calcite-font-weight-medium;
+  font-size: 2em;
+}
